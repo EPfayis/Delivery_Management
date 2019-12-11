@@ -59,8 +59,8 @@ class InsertOrder(APIView):
                                                  rate= rate,
                                                  qty= qty,
                                                  total= total)
-                _TblItemMaster.save()
-                _TblOrder.items.add(_TblItemMaster)
+                _TblItemDetails.save()
+                _TblOrder.items.add(_TblItemDetails)
 
             return JsonResponse({
                 "Message": "Successfully Saved",
@@ -74,7 +74,6 @@ class InsertOrder(APIView):
                 "Message" : "An Error Occured While Saving the Order Subs",
                 "Error" : str(e),
                 "Status" : False
-
             })
 
 
