@@ -18,13 +18,14 @@ from django.urls import path
 from Login import views as Viwe_Login
 from UserDetails import views as View_UserDetails
 from ItemMaster import views as View_ItemMaster
-from OrderDetails import views as View_OrderDetails
+from OrderDetails import views as View_Order_Details
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('Login/',Viwe_Login.Login.as_view()),
+    path('UserTypes/',View_UserDetails.GetUserTypes.as_view()),
     path('InserUser/',View_UserDetails.InsertUserDetails.as_view()),
-    path('SaveItem/', View_ItemMaster.InsertItems.as_view()),
-    path('SaveOrder/', View_OrderDetails.InsertOrder.as_view())
-
+    path('Item/', View_ItemMaster.ItemsManager.as_view()),
+    path('Status/', View_Order_Details.StatusManager.as_view()),
+    path('Order/', View_Order_Details.OrderManager.as_view()),
 ]
