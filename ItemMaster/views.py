@@ -12,14 +12,21 @@ class ItemsManager(APIView):
     def post(self,request):
         try:
 
-            usr_id = self.request.user.id
+            obj_user = self.request.user
+            obj_iserdetails = View_UserDetails.getUserDetails(self.request.user.id)
+            #usr_id =View_UserDetails.getUserDetails(self.request.user.id).id
 
-            if View_UserDetails.getSpecificField(usr_id,"UserType",False) != "MD":
+            if obj_iserdetails.UserType != "MD":
                 return JsonResponse({
                     "Message": "Only Manager can Create The Items",
                     "Status": False
                 })
-            print("User Veryfied")
+            print("User Veryfied as manager")
+
+            if obj_iserdetails.is_approved == False:
+                return JsonResponse(getErrorDict("An Error Occured While Creating The Item",
+                                                 "Your Account is Not Approved"))
+            print("User approval Veryfied")
 
             name = request.POST["Item_Name"]
             rate =float(request.POST["Item_Rate"])

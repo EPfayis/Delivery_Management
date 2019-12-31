@@ -1,6 +1,7 @@
 from django.db import models
 from General_Components.NameSpaces import *
 from ItemMaster.models import TblItemMaster
+from UserDetails.models import TblUserDetails
 # Create your models here.
 
 
@@ -13,7 +14,7 @@ class TblStatus(models.Model):
 
 class TblStatusDetails(models.Model):
     date = models.DateTimeField(null= False)
-    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
+    user = models.ForeignKey(TblUserDetails, on_delete=models.PROTECT, null=True, blank=True)
     status = models.ForeignKey(TblStatus,on_delete= models.PROTECT,null=True)
     description = models.CharField(max_length= 150)
 
@@ -25,9 +26,9 @@ class TblItemDetails(models.Model):
 
 class TblOrder(models.Model):
     date = models.DateTimeField(null= False,blank= False)
-    customer = models.ForeignKey(User,null= False,blank= False,on_delete= models.PROTECT,related_name="Customer_User")
-    delivery_boy = models.ForeignKey(User,null=True,blank= False,on_delete= models.PROTECT,related_name="Db_User")
-    approved_by = models.ForeignKey(User,null= True,blank= False,on_delete= models.PROTECT,related_name="Approved_Usr")
+    customer = models.ForeignKey(TblUserDetails,null= False,blank= False,on_delete= models.PROTECT,related_name="Customer_User")
+    delivery_boy = models.ForeignKey(TblUserDetails,null=True,blank= False,on_delete= models.PROTECT,related_name="Db_User")
+    approved_by = models.ForeignKey(TblUserDetails,null= True,blank= False,on_delete= models.PROTECT,related_name="Approved_Usr")
     total_amt = models.FloatField(null= False,blank= False)
     is_delivered = models.BooleanField(null= False,blank= False)
     is_approved = models.BooleanField(null= False,blank= False)

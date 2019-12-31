@@ -48,37 +48,76 @@ def deleteOrder(id):
     for i in status:
         i.delete()
 
-def approveOrRejectOrder(order_id,action,usr):
+def deliveryBoyCommitOnOrder(usr,action,order_id):
+
     try:
-        usr_type = View_UserDetails.getSpecificField(usr,"UserType",False)
-        obj_user = User.objects.get(id= usr)
+        if action != "C":
+            return "Invalid Action Detected"
+
+        if usr.UserType != "DB":
+            return "Only Delivery Boy Can Commit With An Order"
+
+        print("User validation completed")
+
+
+        obj_tblorder = TblOrder.objects.get(id= order_id)
+        obj_tblorder_temp = obj_tblorder
+
+
+        if obj_tblorder.is_approved == False:
+            return "This Order Is Not Approved"
+
+        if obj_tblorder.delivery_boy_id != None:
+            return "This Order Is Already Committed"
+
+        print("Order validation completed")
+
+        obj_tblorder.delivery_boy = usr
+        obj_tblorder.save()
+
+        print("DB Added To Order")
+
+        return "1"
+
+    except Exception as e:
+        return str(e)
+
+def approveOrRejectOrder(order_id,action,usr,description = ""):
+
+    is_order_updated = False
+    is_statusdetails_added = False
+    is_statusdetails_saved = False
+
+    try:
+        usr_type = usr.UserType
+        obj_userdetails = usr
 
         if usr_type != "MD":
             return "Only Manager Can Approve Or Reject The Order"
-
-        is_order_updated = False
-        is_statusdetails_added = False
-        is_statusdetails_saved = False
-
-
+        if usr.is_approved == False:
+            return "Your Account Is Not Approved"
 
         obj_tblorder = TblOrder.objects.get(id= order_id)
         obj_temp_order = obj_tblorder
         print("--> Order object created")
+
+        print(obj_tblorder.delivery_boy)
+        if obj_tblorder.delivery_boy != None:
+            return "Delivery Boy Assigned. Can't Change The Approval"
 
         if action == "A":
             print("--> Action Detected")
 
             obj_tblorder.is_approved = True
             obj_tblorder.is_rejected = False
-            obj_tblorder.approved_by = obj_user
+            obj_tblorder.approved_by = obj_userdetails
             obj_tblorder.save()
             is_order_updated = True
             print("--> Order updated")
 
             obj_tblstatusdetails = TblStatusDetails(date= datetime.now(),
-                                                    description= "Order is Approved",
-                                                    user= obj_user,
+                                                    description= description,
+                                                    user= obj_userdetails,
                                                     status= getSpecificStatus("2"))
             obj_tblstatusdetails.save()
             is_statusdetails_saved = True
@@ -95,14 +134,14 @@ def approveOrRejectOrder(order_id,action,usr):
 
             obj_tblorder.is_approved = False
             obj_tblorder.is_rejected = True
-            obj_tblorder.approved_by = obj_user
+            obj_tblorder.approved_by = obj_userdetails
             obj_tblorder.save()
             is_order_updated = True
             print("--> Order updated")
 
             obj_tblstatusdetails = TblStatusDetails(date=datetime.now(),
-                                                    description="Order is Rejected",
-                                                    user=obj_user,
+                                                    description= description,
+                                                    user=obj_userdetails,
                                                     status=getSpecificStatus("3"))
             obj_tblstatusdetails.save()
             is_statusdetails_saved = True
@@ -131,21 +170,122 @@ def approveOrRejectOrder(order_id,action,usr):
 
         return str(e)
 
-
 def getSpecificFieldOfOrder(id,field):
     row = TblOrder.objects.filter(id= id)
     a = list(row.values())
     return a[0][field]
 
+def addNewStatusToOrder(order_id,status_id,delivery_boy_id,description):
+
+    is_status_det_saved = False
+    is_status_det_added_to_order = False
+
+    try:
+        obj_user_det = TblUserDetails.objects.get(id= delivery_boy_id)
+        obj_order = TblOrder.objects.get(id= order_id)
+        obj_tblstatus = getSpecificStatus(status_id)
+
+        if obj_order.is_approved == False:
+            return "This Order Is Not Approved"
+        if obj_order.is_delivered == True:
+            return "This Order Is Delivered. Can't Add New Status"
+        if obj_order.delivery_boy != obj_user_det:
+            return "Only The Curresponding Delivery Boy Can Add New Status"
+
+        obj_status_det = TblStatusDetails(date= datetime.now(),
+                                          description= description,
+                                          status= obj_tblstatus,
+                                          user= obj_user_det)
+        obj_status_det.save()
+        is_status_det_saved = True
+
+        obj_order.status.add(obj_status_det)
+        is_status_det_added_to_order = True
+
+        return "1"
+
+    except Exception as e:
+
+        if is_status_det_added_to_order == True:
+            obj_order.status(obj_status_det).delete()
+
+        if is_status_det_saved == True:
+            obj_status_det.delete()
+
+        return str(e)
+
+def deliverTheOrder(order_id,usr_id,description):
+
+    is_order_updated = False
+    is_statusdetails_added = False
+    is_statusdetails_saved = False
+
+    try:
+        obj_tblorder = TblOrder.objects.get(id= order_id)
+        obj_temp_order = obj_tblorder
+        del_boy = obj_tblorder.delivery_boy
+
+        if obj_tblorder.is_approved == False:
+            return "This Order Is Not Approved"
+
+        if del_boy == None:
+            return "No Delivery Boy Assigned For This Order"
+
+        obj_usr_det = TblUserDetails.objects.get(id= usr_id)
+
+        if del_boy != obj_usr_det:
+            return "Only corresponding delivery boy can make an order delivered"
+
+        obj_tblorder.is_delivered = True
+        obj_tblorder.save()
+        is_order_updated = True
+        print("--> Order updated")
+
+        obj_tblstatusdetails = TblStatusDetails(date=datetime.now(),
+                                                description=description,
+                                                user=del_boy,
+                                                status=getSpecificStatus("4"))
+        obj_tblstatusdetails.save()
+        is_statusdetails_saved = True
+        print("--> Status Details Saved")
+
+        obj_tblorder.status.add(obj_tblstatusdetails)
+        is_statusdetails_added = True
+        print("--> Status Details Added To Order")
+
+        return "1"
+
+
+    except Exception as e:
+        if is_statusdetails_added == True:
+            obj_tblorder.status(obj_tblstatusdetails).remove()
+
+        if is_statusdetails_saved == True:
+            obj_tblstatusdetails.delete()
+
+        if is_order_updated == True:
+            obj_temp_order.save()
+
+        return str(e)
+
+
+
+
 
 class StatusManager(APIView):
+    permission_classes = (IsAuthenticated,)
+    authentication_classes = (TokenAuthentication,)
 
     addDefaultStaus()
 
     def post(self,request):
         try:
-            stts = request.POST["Status Name"]
-            obj_tblstatus = TblStatus(name= stts)
+            if self.request.user.is_superuser == False:
+                return JsonResponse(getErrorDict("Validation Error Occured",
+                                                 "You Don't Have The Permission To Add New Status"))
+
+            stts = request.POST["StatusName"]
+            obj_tblstatus = TblStatus(name= stts,is_public= True)
             obj_tblstatus.save()
 
             return JsonResponse({
@@ -167,7 +307,6 @@ class StatusManager(APIView):
         })
 
 class OrderManager(ListAPIView):
-
     permission_classes = (IsAuthenticated,)
     authentication_classes = (TokenAuthentication,)
 
@@ -175,8 +314,10 @@ class OrderManager(ListAPIView):
 
     def postValidate(self,usr,items = []):
 
-        if View_UserDetails.getSpecificField(usr, "UserType", False) != "CR":
+        if usr.UserType != "CR":
             return("Only Customer can make an order")
+        if usr.is_approved == False:
+            return "Your Account is Not Approved"
         if len(items) == 0:
             return("Cannot Accept The Order Without Item")
         return ("1")
@@ -190,13 +331,15 @@ class OrderManager(ListAPIView):
         Received_items = []
 
         try:
-            user_id = self.request.user.id
+
+            obj_user = self.request.user
+            obj_userdetails = View_UserDetails.getUserDetails(obj_user)
 
             #Accepting the request
             #-------------------------
 
             date = datetime.now()
-            customer = User.objects.get(id= user_id)
+            customer = obj_userdetails
             delivery_boy = ""
             approved_by = ""
             Items = json.loads(request.POST["ItemList"])
@@ -206,7 +349,7 @@ class OrderManager(ListAPIView):
             # validating the Request
             #------------------------
 
-            val = self.postValidate(user_id,list(Items))
+            val = self.postValidate(obj_userdetails,list(Items))
             if val != "1":
                 return JsonResponse({
                     "Message" : "Request Validation Failed",
@@ -248,6 +391,7 @@ class OrderManager(ListAPIView):
 
             obj_tblstatus_datails = TblStatusDetails(date=date,
                                                      status=getSpecificStatus(1),
+                                                     user= customer,
                                                      description="Waiting for the approval")
             obj_tblstatus_datails.save()
             is_status_details_saved = True
@@ -286,8 +430,11 @@ class OrderManager(ListAPIView):
 
     def get_queryset(self):
         try:
-            usr = self.request.user.id
-            usr_type = View_UserDetails.getSpecificField(usr,"UserType",False)
+            obj_user = self.request.user
+            obj_userdetails = View_UserDetails.getUserDetails(obj_user)
+
+            usr_type = obj_userdetails.UserType
+
 
             approved = self.request.GET.get("Is_Approved", "")
             rejected = self.request.GET.get("Is_Rejected","")
@@ -317,25 +464,36 @@ class OrderManager(ListAPIView):
         except Exception as e:
             pass
 
-
     def patch(self,request):
         try:
-            usr = request.user.id
-            usr_type = View_UserDetails.getSpecificField(usr, "UserType", False)
+            obj_user = request.user
+            obj_userdetails = View_UserDetails.getUserDetails(obj_user)
+
+            usr_type = obj_userdetails.UserType
 
             action = request.POST["Action"]
             order_id = request.POST["Oreder_Id"]
+            dscrptn = request.POST["Description"]
             print("Request Accepted")
 
             msg = ""
-            msg = approveOrRejectOrder(order_id,action,usr)
-            print("Approval or Rejection Performed")
+            if action == "C":
+                msg = deliveryBoyCommitOnOrder(obj_userdetails,action,order_id)
+            elif action == "D":
+                msg = deliverTheOrder(order_id,obj_userdetails.id,dscrptn)
+            else:
+                msg = approveOrRejectOrder(order_id,action,obj_userdetails,dscrptn)
+            print("(Approval | Rejection | Commit) Performed")
 
             if msg == "1":
-                if action == "R":
+                if action == "D":
+                    msg = "Order Delivered"
+                elif action == "R":
                     msg = "Order rejected"
-                else:
+                elif action == "A":
                     msg = "Order Approved"
+                else:
+                    msg = "Successfully Commited With The Order"
 
                 return JsonResponse({
                     "Message" : msg,
@@ -354,17 +512,46 @@ class OrderManager(ListAPIView):
                 "Status": False
             })
 
+    def put(self,request):
+        try:
+
+            obj_usr = self.request.user;
+            obj_usr_det = View_UserDetails.getUserDetails(obj_usr)
+
+            if obj_usr_det.UserType != "DB":
+                return JsonResponse(getErrorDict("Validation Error Occured","Only Delivery Boy Can Add The Status"))
+
+            order_id = request.POST["Order_ID"]
+            status_id = request.POST["Status_ID"]
+            description = request.POST["Description"]
+
+            msg = addNewStatusToOrder(order_id,status_id,obj_usr_det.id,description)
+
+            if msg != "1":
+                return JsonResponse(getErrorDict("An Error Occured While Adding The Status",msg))
+
+
+            return JsonResponse(getSuccessDict("Status Successfully Added To Order"))
+
+
+        except Exception as  e:
+            return JsonResponse(getErrorDict("An Error Occured While Adding The Status",str(e)))
+
     def delete(self,request):
         try:
 
-            usr_id = self.request.user.id
+            obj_user = self.request.user.id
+            obj_userdetails = View_UserDetails.getUserDetails(obj_user)
+
             order_id = request.POST["Order_Id"]
 
-            if getSpecificFieldOfOrder(order_id, "customer_id") != usr_id:
-                return JsonResponse({
+            if getSpecificFieldOfOrder(order_id, "customer_id") != obj_userdetails.id:
+                return JsonResponse(
+                    {
                     "Message" : "Only The Ordered Customer can Delete The Order",
                     "Status" : False
-                })
+                    }
+                )
 
 
             deleteOrder(order_id)

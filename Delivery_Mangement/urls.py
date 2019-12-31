@@ -24,7 +24,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('Login/',Viwe_Login.Login.as_view()),
     path('UserTypes/',View_UserDetails.GetUserTypes.as_view()),
-    path('InserUser/',View_UserDetails.InsertUserDetails.as_view()),
+    path('UserDetails/',View_UserDetails.UserDetails.as_view()),
     path('Item/', View_ItemMaster.ItemsManager.as_view()),
     path('Status/', View_Order_Details.StatusManager.as_view()),
     path('Order/', View_Order_Details.OrderManager.as_view()),
