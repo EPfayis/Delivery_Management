@@ -12,7 +12,7 @@ from rest_framework.generics import ListAPIView
 from General_Components.Logic_Collections import DynamicFieldsModelSerializer
 from General_Components.Logic_Collections import ExtraFieldModelSerializer
 from django.db.models import Q
-
+from rest_framework.permissions import AllowAny
 
 def getErrorDict(message,error):
     d = {
@@ -21,9 +21,21 @@ def getErrorDict(message,error):
         "Status" : False
     }
     return d
+
 def getSuccessDict(message):
     d = {
         "Message" : message,
         "Status" : True
     }
     return d
+
+def getValErrorDict(message):
+    getErrorDict("Validation Error Occured",message)
+
+def convertStringToListByComma(text):
+    if text == "":
+        return []
+    else:
+        return text.split(",")
+
+STR_ANONYMOUS_USER = "AnonymousUser"

@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     
     'ItemMaster',
     'OrderDetails',
+
+    'ShopDetails',
 ]
 
 MIDDLEWARE = [

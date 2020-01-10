@@ -19,6 +19,7 @@ from Login import views as Viwe_Login
 from UserDetails import views as View_UserDetails
 from ItemMaster import views as View_ItemMaster
 from OrderDetails import views as View_Order_Details
+from ShopDetails import views as View_Shop_Details
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,4 +29,6 @@ urlpatterns = [
     path('Item/', View_ItemMaster.ItemsManager.as_view()),
     path('Status/', View_Order_Details.StatusManager.as_view()),
     path('Order/', View_Order_Details.OrderManager.as_view()),
+    path('Location/', View_Shop_Details.LocationManager.as_view()),
+    path('Shop/', View_Shop_Details.ShopManager.as_view()),
 ]

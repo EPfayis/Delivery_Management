@@ -6,9 +6,12 @@ from .models import TblUserDetails
 from General_Components.Logic_Collections import *
 from UserDetails.Serializer import TblUserDetailsSerializer
 from django.db.models import Q
+from ShopDetails.models import *
+from ShopDetails import views as View_ShopDetails
+
 # Create your views here.
 
-user_types = ["CR","DB","MD"]
+user_types = ["CR","DB","MD","SMD"]
 
 class GetUserTypes(APIView):
     def get(self,request):
@@ -27,6 +30,8 @@ class UserDetails(ListAPIView):
             Name = request.POST["Name"]
             UserName = request.POST["User_Name"]
             UserType = request.POST["User_Type"]
+            shop_id = ""
+            obj_shop = None
 
             if UserType not in user_types:
                 return JsonResponse({
@@ -34,24 +39,32 @@ class UserDetails(ListAPIView):
                     "Error": "Invalid UserType",
                     "Status": False
                 })
-            # if UserType == "MD":
-            #     if str(self.request.user) == "AnonymousUser":
-            #         return JsonResponse({
-            #             "Message" : "You Don't Have The Permission To Create Manager",
-            #             "Status" : False
-            #         })
-            #     if self.request.user.is_superuser == False:
-            #         return JsonResponse({
-            #             "Message": "You Don't Have The Permission To Create Manager",
-            #             "Status": False
-            #         })
-            Pwd =make_password(request.POST["PassWord"])
+            if UserType == "SMD":
+                if str(self.request.user) == "AnonymousUser" or self.request.user.is_superuser == False:
+                    return JsonResponse({
+                        "Message" : "You Don't Have The The Permission To Create Sub Manager",
+                        "Status" : False
+                    })
+                obj_usr_det = getUserDetails(self.request.user)
+
+                if obj_usr_det.UserType != "MD":
+                    return JsonResponse(getErrorDict("Validation Error Occured","You Don't Have The The Permission To Create Sub Manager"))
+
+                shop_id = request.POST["shop_id"]
+                obj_shop = TblShopDetails.objects.get(id= shop_id)
+
+                if obj_shop.super_manager != obj_usr_det:
+                    return JsonResponse({
+                        getErrorDict("Validation Error Occured","You Are Not The Super Manager Of This Shop")
+                    })
+
+            Pwd =make_password(request.POST["Password"])
             Email = request.POST.get("Email","")
             Address = request.POST["Address"]
             Mob = request.POST["Mobile"]
 
             is_approved = False
-            if UserType == "CR":
+            if UserType == "CR" or UserType == "SMD":
                 is_approved = True
             else:
                 is_approved = False
@@ -74,6 +87,14 @@ class UserDetails(ListAPIView):
                                              )
             _TblUserDetails.save()
 
+            if UserType == "SMD":
+
+                obj_shop.managers.add(obj_usr_det)
+
+                return JsonResponse({
+                    getSuccessDict("Successfully Added The Sub Manager")
+                })
+
             return JsonResponse({
                 "Message": "Successfully Saved the user",
                 "Status": True
@@ -91,7 +112,7 @@ class UserDetails(ListAPIView):
             usr_typs =self.request.GET.get("User_Types","")
             is_approved = self.request.GET.get("Is_Approved","")
             search_text = self.request.GET.get("Search_Text","")
-
+            print(self.request.get_host())
             if usr_typs == "":
                 usr_typs = []
             else:
@@ -113,8 +134,7 @@ class UserDetails(ListAPIView):
                     print("Aprv No Type")
                     qs = TblUserDetails.objects.filter(is_approved= is_approved)
 
-            print("before")
-            print(qs)
+
 
             qs = qs.filter(Q(Mobile__contains= search_text)|
                            Q(user__in= User.objects.filter(Q(first_name__contains= search_text)|
@@ -123,10 +143,6 @@ class UserDetails(ListAPIView):
                                                         )
                             )
                           )
-            print("after")
-            print(qs)
-
-
 
             return qs
 
@@ -146,16 +162,43 @@ class UserDetails(ListAPIView):
                     "Message" : "You Don't Have The Permission To Approve The Users",
                     "Status" : False
                 })
-            if self.request.user.is_superuser == False:
-                return JsonResponse({
-                    "Message": "You Don't Have The Permission To Approve The Users",
-                    "Status": False
-                })
+
+            obj_user = self.request.user
+            obj_user_det = None
 
             action = request.POST["action"]
             r_usr = request.POST["user_id"]
 
             obj_r_user = TblUserDetails.objects.get(id= r_usr)
+
+            if obj_user.is_superuser == True:
+            # super user can't approve the sub manager account
+                if obj_r_user.UserType == "SMD":
+                    return JsonResponse(getErrorDict("Validation Error Occured",
+                                                     "You Don't Have The Permission To Approve This User"))
+
+            else:
+            # if non super_user approves an account,some more validations required
+                obj_user_det = getUserDetails(obj_user)
+
+                if obj_user_det.UserType != "MD" or obj_r_user.UserType != "SMD":
+                # Manager can approve only sub manager account
+                    return JsonResponse(getErrorDict("Validation Error Occured",
+                                                     "You Don't Have The Permission To Approve This User"))
+                else:
+                # if a manager going to approve a sub manager account
+                    shop_id = request.POST["shop_id"]
+                    obj_shop = TblShopDetails.objects.get(id= shop_id)
+
+                    if obj_shop.super_manager != obj_user_det:
+                    # The approving person should be the owner of the shop
+                        return JsonResponse(getErrorDict("Validation Error Occured",
+                                                         "You Are Not Recognized As The Owner Of This Shop"))
+                    if View_ShopDetails.isManagerOfTheShop(obj_shop,obj_r_user) == False:
+                    # the sub manager should be in his shop
+                        return JsonResponse(getErrorDict("Validation Error Occured",
+                                                         "This Account Is Not Recognized As The Sub Manager Of Your Shop"))
+
 
             if action == "A":
                 obj_r_user.is_approved = True

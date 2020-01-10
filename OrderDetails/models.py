@@ -2,6 +2,8 @@ from django.db import models
 from General_Components.NameSpaces import *
 from ItemMaster.models import TblItemMaster
 from UserDetails.models import TblUserDetails
+from ShopDetails.models import TblShopDetails
+
 # Create your models here.
 
 
@@ -35,5 +37,5 @@ class TblOrder(models.Model):
     is_rejected = models.BooleanField(null= False,blank= False)
     items = models.ManyToManyField(TblItemDetails)
     status = models.ManyToManyField(TblStatusDetails)
-
+    shop = models.ForeignKey(TblShopDetails,null= True,on_delete= models.PROTECT)
 

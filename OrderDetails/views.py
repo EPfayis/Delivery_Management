@@ -7,6 +7,7 @@ from OrderDetails.Serializer import TblOrderSerializer
 from .models import *
 from UserDetails.models import TblUserDetails
 from UserDetails import views as View_UserDetails
+from ShopDetails import views as View_ShopDetails
 
 # Create your views here.
 
@@ -92,14 +93,19 @@ def approveOrRejectOrder(order_id,action,usr,description = ""):
         usr_type = usr.UserType
         obj_userdetails = usr
 
-        if usr_type != "MD":
-            return "Only Manager Can Approve Or Reject The Order"
+        # if usr_type != "MD":
+        #     return "Only Manager Can Approve Or Reject The Order"
         if usr.is_approved == False:
             return "Your Account Is Not Approved"
 
         obj_tblorder = TblOrder.objects.get(id= order_id)
         obj_temp_order = obj_tblorder
         print("--> Order object created")
+
+        if View_ShopDetails.isManagerOfTheShop(obj_tblorder.shop,obj_userdetails) == False:
+            return "You are not identified as the manager of the shop"
+        if obj_userdetails.is_approved == False:
+            return "Your account is not approved"
 
         print(obj_tblorder.delivery_boy)
         if obj_tblorder.delivery_boy != None:
@@ -270,8 +276,6 @@ def deliverTheOrder(order_id,usr_id,description):
 
 
 
-
-
 class StatusManager(APIView):
     permission_classes = (IsAuthenticated,)
     authentication_classes = (TokenAuthentication,)
@@ -312,14 +316,29 @@ class OrderManager(ListAPIView):
 
     serializer_class = TblOrderSerializer
 
-    def postValidate(self,usr,items = []):
+    def postValidate(self,usr,obj_shop,items = []):
 
         if usr.UserType != "CR":
-            return("Only Customer can make an order")
+            return "Only Customer can make an order"
         if usr.is_approved == False:
             return "Your Account is Not Approved"
         if len(items) == 0:
-            return("Cannot Accept The Order Without Item")
+            return "Cannot Accept The Order Without Item"
+        if obj_shop.is_approved == False:
+            return "The Shop Is Not Approved"
+        if obj_shop.is_active == False:
+            return "This Shop Is Not Active Now, Try Again After Some Time"
+
+        for i in items:
+
+            obj_itemmaster = TblItemMaster.objects.get(id=i["ItemId"])
+
+            if View_ShopDetails.isItemOfTheShop(obj_shop,obj_itemmaster)== False:
+                return "Provided item(s) couldn't find in the shop"
+            if obj_itemmaster.is_active == False:
+                return "Provided item(s) is not active"
+
+
         return ("1")
 
     def post(self,request):
@@ -342,14 +361,18 @@ class OrderManager(ListAPIView):
             customer = obj_userdetails
             delivery_boy = ""
             approved_by = ""
+
+            shop_id = request.POST["shop_id"]
             Items = json.loads(request.POST["ItemList"])
 
             print("Request Accepted")
 
+            obj_shop = TblShopDetails.objects.get(id= shop_id)
+
             # validating the Request
             #------------------------
 
-            val = self.postValidate(obj_userdetails,list(Items))
+            val = self.postValidate(obj_userdetails,obj_shop,list(Items))
             if val != "1":
                 return JsonResponse({
                     "Message" : "Request Validation Failed",
@@ -383,7 +406,8 @@ class OrderManager(ListAPIView):
                                     is_approved= False,
                                     is_delivered= False,
                                     is_rejected= False,
-                                    total_amt= net_amt)
+                                    total_amt= net_amt,
+                                    shop= obj_shop,)
             obj_tblorder.save()
             is_order_saved = True
 
@@ -473,7 +497,7 @@ class OrderManager(ListAPIView):
 
             action = request.POST["Action"]
             order_id = request.POST["Oreder_Id"]
-            dscrptn = request.POST["Description"]
+            dscrptn = request.POST.get("Description","")
             print("Request Accepted")
 
             msg = ""
@@ -483,7 +507,7 @@ class OrderManager(ListAPIView):
                 msg = deliverTheOrder(order_id,obj_userdetails.id,dscrptn)
             else:
                 msg = approveOrRejectOrder(order_id,action,obj_userdetails,dscrptn)
-            print("(Approval | Rejection | Commit) Performed")
+            print("(Approval | Rejection | Commit | delivery) Performed")
 
             if msg == "1":
                 if action == "D":
